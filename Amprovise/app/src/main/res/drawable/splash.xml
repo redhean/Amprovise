@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:drawable="@color/black"/>
+    <item android:drawable="@drawable/amprovise_logo_off_real"
+        android:gravity="center"
+        android:width="600dp"
+        android:height="660dp" />
+
+</layer-list>
