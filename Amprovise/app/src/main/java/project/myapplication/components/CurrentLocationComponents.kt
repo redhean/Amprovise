@@ -29,10 +29,17 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.MapView
+import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
+import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.Marker
+import com.google.maps.android.compose.MarkerState
+import com.google.maps.android.compose.rememberCameraPositionState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 
 @Composable
@@ -50,11 +57,28 @@ fun LocationApp() {
     val scaffoldState = rememberScaffoldState()
     val scope = rememberCoroutineScope()
 
+    var currentLatLng = LatLng(37.5665, 126.9780) // 서울
+    val cameraPositionState = rememberCameraPositionState{
+        position = CameraPosition.fromLatLngZoom(currentLatLng, 15f)
+    }
+
     // 권한이 있으면 위치 정보 가져오기
     if (permissionGranted) {
         LaunchedEffect(Unit) {
             locationText = fetchLocation(fusedLocationClient, context)
-            googleMap?.let { initializeMap(locationText, it) }
+            val parts = locationText.split(",")
+            if (parts.size >= 2) {
+                val latitude = parts[0].toDoubleOrNull()
+                val longitude = parts[1].toDoubleOrNull()
+
+                Log.i("test", latitude.toString())
+                Log.i("test", longitude.toString())
+
+                if (latitude != null && longitude != null) {
+                    currentLatLng = LatLng(latitude, longitude)
+                    cameraPositionState.position = CameraPosition.fromLatLngZoom(currentLatLng, 15f)
+                }
+            }
         }
     }
     Scaffold(
@@ -68,21 +92,16 @@ fun LocationApp() {
                 contentAlignment = Alignment.Center
             ) {
                 if (permissionGranted) {
-                    AndroidView(
-                        factory = { ctx ->
-                            val mapView = MapView(ctx)
-                            mapView.onCreate(null)
-                            mapView.getMapAsync { map ->
-                                googleMap?.clear()
-                                googleMap = map
-                                googleMap?.let { initializeMap(locationText, it) }
-                            }
-                            mapView
-                        },
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    )
+                    GoogleMap(
+                      modifier = Modifier
+                          .fillMaxSize()
+                          .padding(innerPadding),
+                        cameraPositionState = cameraPositionState
+                    ) {
+                        Marker(
+                            state = MarkerState(position = currentLatLng)
+                        )
+                    }
                 } else {
                     Column(
                         modifier = Modifier
@@ -108,26 +127,6 @@ fun LocationApp() {
         }
     )
 }
-
-fun initializeMap(locationText : String, googleMap : GoogleMap) {
-    if (locationText != "Fetching location...") {
-        val parts = locationText.split(",")
-        if (parts.size >= 2) {
-            val latitude = parts[0].toDoubleOrNull()
-            val longitude = parts[1].toDoubleOrNull()
-
-            Log.i("test", latitude.toString())
-            Log.i("test", longitude.toString())
-
-            if (latitude != null && longitude != null) {
-                val currentLatLng = LatLng(latitude, longitude)
-                googleMap?.addMarker(MarkerOptions().position(currentLatLng).title("현재 위치"))
-                googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15f))
-            }
-        }
-    }
-}
-
 
 suspend fun fetchLocation(client: FusedLocationProviderClient, context: android.content.Context): String {
     return withContext(Dispatchers.IO) {
@@ -162,3 +161,4 @@ fun requestLocationPermission(context: android.content.Context) {
         123 // 요청 코드, 필요에 따라 변경
     )
 }
+
